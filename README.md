@@ -51,6 +51,7 @@ Open [http://localhost:3000](http://localhost:3000), click **Run crawl**, then t
 | `npm test` | Run unit tests (Vitest) — fixtures/mocks only, no network or DB |
 | `npm run test:e2e` | Run E2E tests (Playwright) — hits the real app and the real HN front page |
 | `npm run lint` | ESLint |
+| `npm run db:studio` | Open Prisma Studio to inspect the `UsageLog` table |
 
 ## API
 
@@ -69,6 +70,23 @@ interface HNEntry {
 ```
 
 Both endpoints log the request to the `UsageLog` table, including failures.
+
+## Inspecting the usage log
+
+To see the logged crawl/filter requests in the `UsageLog` table:
+
+```bash
+npm run db:studio
+```
+
+This opens [Prisma Studio](http://localhost:5555), a browser UI to browse, filter, and sort the table — no extra setup needed.
+
+Alternatives:
+- **VS Code** — the "SQLite Viewer" extension can open `prisma/dev.db` directly, without starting a server.
+- **CLI**, if you have `sqlite3` installed:
+```bash
+  sqlite3 prisma/dev.db "SELECT * FROM UsageLog ORDER BY id DESC LIMIT 10;"
+```
 
 ## Project structure
 
