@@ -22,38 +22,46 @@ const filterRequestSchema = z.object({
  * doesn't depend on HN's front page staying the same between requests.
  */
 export async function POST(request: Request) {
-  const start = Date.now();
-  const body = await request.json();
-  const parsed = filterRequestSchema.safeParse(body);
+    const start = Date.now();
+    const body = await request.json();
+    const parsed = filterRequestSchema.safeParse(body);
 
-  if (!parsed.success) {
+    if (!parsed.success) {
+        const durationMs = Date.now() - start;
+        try{
+            await logUsage({
+                filterType: "none",
+                resultCount: 0,
+                durationMs,
+                success: false,
+                errorMessage: "Invalid filter request body",
+            });
+        } catch (e) {
+            const eMessage = e instanceof Error ? e.message : "Unknown logging error";
+            console.error("Failed to log usage:", eMessage);
+        }
+
+        return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
+    const { entries, filterType } = parsed.data;
+
+    const filtered =
+        filterType === "long-title-by-comments"
+            ? filterByLongTitle(entries)
+            : filterByShortTitle(entries);
+
     const durationMs = Date.now() - start;
+    try{
+        await logUsage({
+            filterType,
+            resultCount: filtered.length,
+            durationMs,
+        });
+    } catch (e) {
+        const eMessage = e instanceof Error ? e.message : "Unknown logging error";
+        console.error("Failed to log usage:", eMessage);
+    }
 
-    await logUsage({
-      filterType: "none",
-      resultCount: 0,
-      durationMs,
-      success: false,
-      errorMessage: "Invalid filter request body",
-    });
-
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
-  }
-
-  const { entries, filterType } = parsed.data;
-
-  const filtered =
-    filterType === "long-title-by-comments"
-      ? filterByLongTitle(entries)
-      : filterByShortTitle(entries);
-
-  const durationMs = Date.now() - start;
-
-  await logUsage({
-    filterType,
-    resultCount: filtered.length,
-    durationMs,
-  });
-
-  return NextResponse.json({ entries: filtered });
+    return NextResponse.json({ entries: filtered });
 }

@@ -25,14 +25,18 @@ export async function GET() {
     const durationMs = Date.now() - start;
     const errorMessage =
       error instanceof Error ? error.message : "Unknown crawl error";
-
-    await logUsage({
-      filterType: "none",
-      resultCount: 0,
-      durationMs,
-      success: false,
-      errorMessage,
-    });
+    try{
+        await logUsage({
+            filterType: "none",
+            resultCount: 0,
+            durationMs,
+            success: false,
+            errorMessage,
+        });
+    } catch (e) {
+        const eMessage = e instanceof Error ? e.message : "Unknown logging error";
+        console.error("Failed to log usage:", eMessage);
+    }
 
     return NextResponse.json({ error: errorMessage }, { status: 502 });
   }
