@@ -1,36 +1,120 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# hn-crawler
 
-## Getting Started
+Crawls the first 30 entries from the [Hacker News](https://news.ycombinator.com/) front page and lets you filter them by title length, with every crawl and filter operation logged for later analysis.
 
-First, run the development server:
+## What it does
+
+- Crawls the HN front page and extracts rank, title, points, and comment count for the first 30 entries.
+- **Long titles, by comments** — entries with more than 5 words in the title, sorted by comment count (descending).
+- **Short titles, by points** — entries with 5 words or fewer in the title, sorted by points (descending).
+- Logs every crawl and filter request (timestamp, which filter was applied, result count, duration, success/failure) to a local SQLite database.
+
+See [`DESIGN.md`](./DESIGN.md) for the reasoning behind these choices.
+
+## Tech stack
+
+| Layer | Choice |
+|---|---|
+| Framework | Next.js 16 (App Router), TypeScript |
+| Scraping | Cheerio |
+| Database | SQLite via Prisma **6** (see [DESIGN.md](./DESIGN.md#why-prisma-6-not-7)) |
+| Validation | Zod |
+| Styling | Tailwind CSS v4 + custom CSS |
+| Unit/API tests | Vitest |
+| E2E tests | Playwright |
+
+## Getting started
+
+### Prerequisites
+
+- Node.js ≥ 20.9
+
+### Setup
 
 ```bash
+git clone <this-repo-url>
+cd hn-crawler
+npm install
+npx prisma generate
+npx prisma migrate dev --name init
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000), click **Run crawl**, then try the two filter tabs.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | Description |
+|---|---|
+| `npm run dev` | Start the dev server |
+| `npm run build` | Production build |
+| `npm test` | Run unit tests (Vitest) — fixtures/mocks only, no network or DB |
+| `npm run test:e2e` | Run E2E tests (Playwright) — hits the real app and the real HN front page |
+| `npm run lint` | ESLint |
 
-## Learn More
+## API
 
-To learn more about Next.js, take a look at the following resources:
+| Endpoint | Method | Body | Returns |
+|---|---|---|---|
+| `/api/crawl` | GET | — | `{ entries: HNEntry[] }` |
+| `/api/filter` | POST | `{ entries: HNEntry[], filterType: "long-title-by-comments" \| "short-title-by-points" }` | `{ entries: HNEntry[] }` |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```ts
+interface HNEntry {
+  rank: number;
+  title: string;
+  points: number;
+  comments: number;
+}
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Both endpoints log the request to the `UsageLog` table, including failures.
 
-## Deploy on Vercel
+## Project structure
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+hn-crawler/
+├── prisma/
+│   └── schema.prisma
+├── src/
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── crawl/route.ts
+│   │   │   └── filter/route.ts
+│   │   ├── globals.css
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── components/
+│   │   ├── EntryTable.tsx
+│   │   └── FilterTabs.tsx
+│   ├── hooks/
+│   │   └── useHNCrawler.ts
+│   └── lib/
+│       ├── db.ts
+│       ├── filters.ts
+│       ├── scraper.ts
+│       ├── usageLogger.ts
+│       └── wordCount.ts
+├── tests/
+│   ├── e2e/
+│   │   └── crawler.spec.ts
+│   └── unit/
+│       ├── fixtures/hn-sample.html
+│       └── *.test.ts
+├── DESIGN.md
+└── README.md
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Testing strategy
+
+- **Unit tests** (`npm test`) never touch the network or the real database — the scraper is tested against a static HTML fixture, and Prisma is mocked when testing the usage logger and the API routes.
+- **E2E tests** (`npm run test:e2e`) run against the real app, which crawls the real HN front page and writes to the real SQLite database — this is where the actual integration gets verified.
+
+## Known limitations
+
+- **Deployment on serverless platforms (e.g. Vercel):** SQLite's file needs a persistent, writable filesystem. Serverless functions have an ephemeral filesystem, so the usage log would not reliably persist across invocations there. This is fine for local development and for platforms with persistent disks (Railway, Fly.io, a VM); it would need a hosted database (Postgres, Turso/libSQL, etc.) for a real serverless deployment.
+- No authentication or rate-limiting — out of scope for this exercise.
+
+## License
+
+MIT — see [`LICENSE`](./LICENSE).
