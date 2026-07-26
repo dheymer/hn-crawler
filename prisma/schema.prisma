@@ -11,3 +11,20 @@ generator client {
 datasource db {
   provider = "sqlite"
 }
+
+// Tracks every crawl/filter request: when it happened, which filter was
+// applied (if any), how many results it returned, how long it took, and
+// whether it succeeded. Indexed on the two fields we'd realistically
+// query on: recency and filter type.
+model UsageLog {
+  id           Int      @id @default(autoincrement())
+  timestamp    DateTime @default(now())
+  filterType   String
+  resultCount  Int
+  durationMs   Int
+  success      Boolean  @default(true)
+  errorMessage String?
+
+  @@index([timestamp])
+  @@index([filterType])
+}
