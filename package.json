@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "db:studio": "prisma studio",
     "postinstall": "prisma generate"
   },
   "dependencies": {
