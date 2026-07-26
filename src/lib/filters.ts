@@ -3,10 +3,11 @@ import { countWords } from "./wordCount";
 
 /**
  * Identifies which filter operation was applied to a request.
- * Reused later by the usage-logging layer (Prisma) and the API routes,
+ * "none" represents a plain crawl with no filter applied yet.
+ * Reused by the usage-logging layer (Prisma) and the API routes,
  * so it lives here next to the logic it describes.
  */
-export type FilterType = "long-title-by-comments" | "short-title-by-points";
+export type FilterType = "none" | "long-title-by-comments" | "short-title-by-points";
 
 /**
  * Entries with MORE than 5 words in the title, ordered by comments
